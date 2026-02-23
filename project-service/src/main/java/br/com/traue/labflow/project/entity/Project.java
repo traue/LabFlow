@@ -23,6 +23,9 @@ public class Project {
     @JoinColumn(name = "course_id", nullable = false)
     private Course course;
 
+    @Column(name = "created_by_user_id")
+    private Long createdByUserId;
+
     @OneToMany(mappedBy = "project", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<ProjectMember> members;
 

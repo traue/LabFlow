@@ -9,4 +9,5 @@ public class ProjectResponse {
     private String description;
     private Long courseId;
     private String courseCode;
+    private Long createdByUserId;
 }

@@ -1,4 +1,4 @@
-import { api, getCurrentUser } from '../api.js';
+import { api, getCurrentUser, parseJwt, getToken } from '../api.js';
 import { icons } from '../icons.js';
 import { renderAppLayout } from './layout.js';
 import { toast, openModal, confirm, escapeHtml, formatDate } from '../ui.js';
@@ -11,7 +11,8 @@ export async function renderSubmissionReviews({ submissionId }) {
   const user = getCurrentUser();
   const role = user?.role || '';
   const canCreate = ['ROLE_ADMIN', 'ROLE_PROF', 'ROLE_TA'].includes(role);
-  const canDelete = ['ROLE_PROF', 'ROLE_ADMIN'].includes(role);
+  const isAdmin = role === 'ROLE_ADMIN';
+  const currentUserId = getCurrentUserId();
 
   let reviews = [];
   try {
@@ -78,12 +79,12 @@ export async function renderSubmissionReviews({ submissionId }) {
                 </td>
                 <td>${formatDate(r.createdAt)}</td>
                 <td class="table-actions">
-                  ${canCreate ? `
+                  ${(isAdmin || r.reviewerUserId === currentUserId) ? `
                     <button class="btn btn-sm btn-ghost btn-edit-review" data-review-id="${r.id}" title="Editar">
                       ${icons.edit}
                     </button>
                   ` : ''}
-                  ${canDelete ? `
+                  ${(isAdmin || r.reviewerUserId === currentUserId) ? `
                     <button class="btn btn-sm btn-ghost btn-delete-review" data-review-id="${r.id}" title="Excluir">
                       ${icons.trash}
                     </button>
@@ -245,4 +246,12 @@ function openEditReviewModal(review, submissionId) {
       btn.disabled = false;
     }
   });
+}
+
+// ─── Helper: Get current user ID from JWT ───
+function getCurrentUserId() {
+  const token = getToken();
+  if (!token) return null;
+  const payload = parseJwt(token);
+  return payload ? Number(payload.sub) : null;
 }

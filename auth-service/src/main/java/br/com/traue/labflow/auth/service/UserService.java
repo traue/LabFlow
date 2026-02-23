@@ -5,12 +5,14 @@ import br.com.traue.labflow.auth.entity.Profile;
 import br.com.traue.labflow.auth.entity.User;
 import br.com.traue.labflow.auth.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.lang.NonNull;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
 @Service
 @RequiredArgsConstructor
@@ -33,7 +35,7 @@ public class UserService {
                 .toList();
     }
 
-    public UserResponse findById(Long id) {
+    public UserResponse findById(@NonNull Long id) {
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("User not found: " + id));
         return toResponse(user);
@@ -46,11 +48,11 @@ public class UserService {
     }
 
     @Transactional
-    public UserResponse updateRole(Long id, String newRole) {
+    public UserResponse updateRole(@NonNull Long id, @NonNull String newRole) {
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("User not found: " + id));
         user.setRole(newRole);
-        return toResponse(userRepository.save(user));
+        return toResponse(userRepository.save(Objects.requireNonNull(user)));
     }
 
     public List<UserResponse> search(String query) {
@@ -111,7 +113,7 @@ public class UserService {
                         .build();
                 user.setProfile(profile);
 
-                userRepository.save(user);
+                userRepository.save(Objects.requireNonNull(user));
 
                 results.add(ImportUserResult.builder()
                         .username(req.getUsername())

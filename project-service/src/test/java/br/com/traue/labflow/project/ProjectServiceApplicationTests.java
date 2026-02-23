@@ -18,6 +18,7 @@ import javax.crypto.SecretKey;
 import java.nio.charset.StandardCharsets;
 import java.util.Date;
 import java.util.List;
+import java.util.Objects;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
@@ -52,8 +53,8 @@ class ProjectServiceApplicationTests {
 
         String courseJson = mockMvc.perform(post("/api/courses")
                         .header("Authorization", "Bearer " + profToken)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(courseReq)))
+                        .contentType(Objects.requireNonNull(MediaType.APPLICATION_JSON))
+                        .content(Objects.requireNonNull(objectMapper.writeValueAsString(courseReq))))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.id").exists())
                 .andExpect(jsonPath("$.code").value("CS101"))
@@ -71,8 +72,8 @@ class ProjectServiceApplicationTests {
 
         mockMvc.perform(post("/api/courses/" + courseId + "/projects")
                         .header("Authorization", "Bearer " + profToken)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(projectReq)))
+                        .contentType(Objects.requireNonNull(MediaType.APPLICATION_JSON))
+                        .content(Objects.requireNonNull(objectMapper.writeValueAsString(projectReq))))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.title").value("Lab 1"))
                 .andExpect(jsonPath("$.courseId").value(courseId));
@@ -109,8 +110,8 @@ class ProjectServiceApplicationTests {
 
         mockMvc.perform(post("/api/courses")
                         .header("Authorization", "Bearer " + studentToken)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(courseReq)))
+                        .contentType(Objects.requireNonNull(MediaType.APPLICATION_JSON))
+                        .content(Objects.requireNonNull(objectMapper.writeValueAsString(courseReq))))
                 .andExpect(status().isForbidden());
     }
 

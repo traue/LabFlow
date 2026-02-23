@@ -131,6 +131,8 @@ export const api = {
   },
   getCourse: (id) => request(`/api/courses/${id}`),
   createCourse: (body) => request('/api/courses', { method: 'POST', body: JSON.stringify(body) }),
+  updateCourse: (id, body) => request(`/api/courses/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
+  deleteCourse: (id) => request(`/api/courses/${id}`, { method: 'DELETE' }),
   getCourseProjects: (courseId) => request(`/api/courses/${courseId}/projects`),
   createCourseProject: (courseId, body) =>
     request(`/api/courses/${courseId}/projects`, { method: 'POST', body: JSON.stringify(body) }),

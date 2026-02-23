@@ -6,8 +6,11 @@ import br.com.traue.labflow.auth.entity.User;
 import br.com.traue.labflow.auth.repository.ProfileRepository;
 import br.com.traue.labflow.auth.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.lang.NonNull;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.util.Objects;
 
 @Service
 @RequiredArgsConstructor
@@ -16,17 +19,17 @@ public class ProfileService {
     private final ProfileRepository profileRepository;
     private final UserRepository userRepository;
 
-    public ProfileResponse getByUserId(Long userId) {
+    public ProfileResponse getByUserId(@NonNull Long userId) {
         Profile profile = profileRepository.findByUserId(userId)
                 .orElseThrow(() -> new IllegalArgumentException("Profile not found for user: " + userId));
         return toResponse(profile);
     }
 
     @Transactional
-    public ProfileResponse updateProfile(Long userId, ProfileRequest request) {
+    public ProfileResponse updateProfile(@NonNull Long userId, @NonNull ProfileRequest request) {
         Profile profile = profileRepository.findByUserId(userId)
                 .orElseGet(() -> {
-                    User user = userRepository.findById(userId)
+                    User user = userRepository.findById(Objects.requireNonNull(userId))
                             .orElseThrow(() -> new IllegalArgumentException("User not found: " + userId));
                     return Profile.builder().user(user).build();
                 });
@@ -35,7 +38,7 @@ public class ProfileService {
         if (request.getPhone() != null) profile.setPhone(request.getPhone());
         if (request.getAffiliation() != null) profile.setAffiliation(request.getAffiliation());
 
-        profile = profileRepository.save(profile);
+        profile = profileRepository.save(Objects.requireNonNull(profile));
         return toResponse(profile);
     }
 

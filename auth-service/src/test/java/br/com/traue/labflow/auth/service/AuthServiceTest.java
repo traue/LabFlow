@@ -34,6 +34,7 @@ class AuthServiceTest {
     private AuthService authService;
 
     @Test
+    @SuppressWarnings("null")
     void register_shouldCreateUser() {
         RegisterRequest request = RegisterRequest.builder()
                 .username("newuser")

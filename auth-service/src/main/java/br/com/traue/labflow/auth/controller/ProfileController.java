@@ -6,8 +6,11 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.lang.NonNull;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.Objects;
 
 @RestController
 @RequestMapping("/api/profiles")
@@ -20,21 +23,21 @@ public class ProfileController {
     @GetMapping("/me")
     @Operation(summary = "Get current user profile")
     public ResponseEntity<ProfileResponse> myProfile(Authentication authentication) {
-        Long userId = (Long) authentication.getPrincipal();
+        Long userId = Objects.requireNonNull((Long) authentication.getPrincipal());
         return ResponseEntity.ok(profileService.getByUserId(userId));
     }
 
     @GetMapping("/{userId}")
     @Operation(summary = "Get profile by user ID")
-    public ResponseEntity<ProfileResponse> getByUserId(@PathVariable Long userId) {
+    public ResponseEntity<ProfileResponse> getByUserId(@PathVariable @NonNull Long userId) {
         return ResponseEntity.ok(profileService.getByUserId(userId));
     }
 
     @PutMapping("/me")
     @Operation(summary = "Update current user profile")
     public ResponseEntity<ProfileResponse> update(Authentication authentication,
-                                                   @RequestBody ProfileRequest request) {
-        Long userId = (Long) authentication.getPrincipal();
+                                                   @RequestBody @NonNull ProfileRequest request) {
+        Long userId = Objects.requireNonNull((Long) authentication.getPrincipal());
         return ResponseEntity.ok(profileService.updateProfile(userId, request));
     }
 }

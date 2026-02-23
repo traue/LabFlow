@@ -23,6 +23,9 @@ public class Course {
     @Column(nullable = false, length = 20)
     private String term;
 
+    @Column(name = "created_by_user_id")
+    private Long createdByUserId;
+
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
 

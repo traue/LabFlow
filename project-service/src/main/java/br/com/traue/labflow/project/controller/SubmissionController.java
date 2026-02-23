@@ -9,10 +9,12 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.lang.NonNull;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Objects;
 
 @RestController
 @RequiredArgsConstructor
@@ -30,10 +32,10 @@ public class SubmissionController {
 
     @PostMapping("/api/projects/{projectId}/submissions")
     @Operation(summary = "Create a submission")
-    public ResponseEntity<SubmissionResponse> create(@PathVariable Long projectId,
+    public ResponseEntity<SubmissionResponse> create(@PathVariable @NonNull Long projectId,
                                                       Authentication authentication,
-                                                      @Valid @RequestBody SubmissionRequest request) {
-        Long userId = (Long) authentication.getPrincipal();
+                                                      @Valid @RequestBody @NonNull SubmissionRequest request) {
+        Long userId = Objects.requireNonNull((Long) authentication.getPrincipal());
         return ResponseEntity.status(HttpStatus.CREATED).body(submissionService.create(projectId, userId, request));
     }
 }

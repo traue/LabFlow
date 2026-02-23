@@ -1,7 +1,7 @@
-import { api, getCurrentUser } from '../api.js';
+import { api, getCurrentUser, parseJwt, getToken } from '../api.js';
 import { icons } from '../icons.js';
 import { renderAppLayout } from './layout.js';
-import { toast, openModal, escapeHtml } from '../ui.js';
+import { toast, openModal, confirm, escapeHtml } from '../ui.js';
 import { navigate } from '../router.js';
 
 // ─── List Courses ───
@@ -115,6 +115,10 @@ export async function renderCourseDetail({ id }) {
         <h2>${escapeHtml(course.code)} — ${escapeHtml(course.title)}</h2>
         <span class="badge badge-info" style="margin-top:.25rem">${escapeHtml(course.term)}</span>
       </div>
+      <div style="display:flex;gap:.5rem">
+        ${canEditCourse(course, user) ? `<button class="btn btn-sm btn-secondary" id="btn-edit-course">${icons.edit} Editar</button>` : ''}
+        ${canDeleteCourse(course, user) ? `<button class="btn btn-sm btn-danger" id="btn-delete-course">${icons.trash} Excluir</button>` : ''}
+      </div>
     </div>
 
     <div class="card" style="margin-top:1rem">
@@ -162,6 +166,34 @@ export async function renderCourseDetail({ id }) {
   document.querySelectorAll('[data-goto]').forEach(el => {
     el.addEventListener('click', () => navigate(el.dataset.goto));
   });
+
+  // Edit course
+  const btnEditCourse = document.getElementById('btn-edit-course');
+  if (btnEditCourse) {
+    btnEditCourse.addEventListener('click', () => openEditCourseModal(course));
+  }
+
+  // Delete course
+  const btnDeleteCourse = document.getElementById('btn-delete-course');
+  if (btnDeleteCourse) {
+    btnDeleteCourse.addEventListener('click', async () => {
+      const ok = await confirm({
+        title: 'Excluir Curso',
+        message: `Tem certeza que deseja excluir o curso "${course.code} — ${course.title}"? Todos os projetos e submissões associados serão removidos. Esta ação não pode ser desfeita.`,
+        confirmText: 'Excluir',
+        danger: true,
+      });
+      if (ok) {
+        try {
+          await api.deleteCourse(id);
+          toast('Curso excluído com sucesso!', 'success');
+          navigate('/courses');
+        } catch (err) {
+          toast(err.message, 'error');
+        }
+      }
+    });
+  }
 
   const btnNew = document.getElementById('btn-new-project');
   if (btnNew) {
@@ -257,6 +289,78 @@ function openProjectModal(courseId) {
       toast('Projeto criado com sucesso!', 'success');
       modal.remove();
       renderCourseDetail({ id: courseId });
+    } catch (err) {
+      toast(err.message, 'error');
+      btn.disabled = false;
+      btn.textContent = 'Salvar';
+    }
+  });
+}
+
+// ─── Helper: Can user edit/delete course ───
+function getCurrentUserId() {
+  const token = getToken();
+  if (!token) return null;
+  const payload = parseJwt(token);
+  return payload ? Number(payload.sub) : null;
+}
+
+function canEditCourse(course, user) {
+  if (!user) return false;
+  if (user.role === 'ROLE_ADMIN') return true;
+  const uid = getCurrentUserId();
+  return uid && course.createdByUserId === uid;
+}
+
+function canDeleteCourse(course, user) {
+  if (!user) return false;
+  if (user.role === 'ROLE_ADMIN') return true;
+  const uid = getCurrentUserId();
+  return uid && course.createdByUserId === uid;
+}
+
+// ─── Edit Course Modal ───
+function openEditCourseModal(course) {
+  const modal = openModal({
+    title: 'Editar Curso',
+    body: `
+      <form class="auth-form">
+        <div class="form-group">
+          <label class="form-label">Código</label>
+          <input class="form-input" id="edit-course-code" required maxlength="20" value="${escapeHtml(course.code)}" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">Título</label>
+          <input class="form-input" id="edit-course-title" required maxlength="200" value="${escapeHtml(course.title)}" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">Período</label>
+          <input class="form-input" id="edit-course-term" required maxlength="20" value="${escapeHtml(course.term)}" />
+        </div>
+      </form>
+    `,
+    footer: `
+      <button class="btn btn-secondary" data-action="cancel">Cancelar</button>
+      <button class="btn btn-primary" id="btn-save-edit-course">Salvar</button>
+    `,
+  });
+
+  modal.querySelector('[data-action="cancel"]').onclick = () => modal.remove();
+
+  modal.querySelector('#btn-save-edit-course').addEventListener('click', async () => {
+    const btn = modal.querySelector('#btn-save-edit-course');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner"></span>';
+
+    try {
+      await api.updateCourse(course.id, {
+        code: modal.querySelector('#edit-course-code').value.trim(),
+        title: modal.querySelector('#edit-course-title').value.trim(),
+        term: modal.querySelector('#edit-course-term').value.trim(),
+      });
+      toast('Curso atualizado com sucesso!', 'success');
+      modal.remove();
+      renderCourseDetail({ id: course.id });
     } catch (err) {
       toast(err.message, 'error');
       btn.disabled = false;

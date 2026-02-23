@@ -11,10 +11,12 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.lang.NonNull;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Objects;
 
 @RestController
 @RequestMapping("/api/users")
@@ -43,24 +45,24 @@ public class UserController {
     @GetMapping("/{id}")
     @Operation(summary = "Get user by ID")
     @PreAuthorize("hasRole('ROLE_ADMIN') or #id == authentication.principal")
-    public ResponseEntity<UserResponse> findById(@PathVariable Long id) {
+    public ResponseEntity<UserResponse> findById(@PathVariable @NonNull Long id) {
         return ResponseEntity.ok(userService.findById(id));
     }
 
     @PutMapping("/{id}/profile")
     @Operation(summary = "Update user profile")
     @PreAuthorize("hasRole('ROLE_ADMIN') or #id == authentication.principal")
-    public ResponseEntity<ProfileResponse> updateProfile(@PathVariable Long id,
-                                                          @Valid @RequestBody ProfileRequest request) {
+    public ResponseEntity<ProfileResponse> updateProfile(@PathVariable @NonNull Long id,
+                                                          @Valid @RequestBody @NonNull ProfileRequest request) {
         return ResponseEntity.ok(profileService.updateProfile(id, request));
     }
 
     @PatchMapping("/{id}/role")
     @PreAuthorize("hasRole('ROLE_ADMIN')")
     @Operation(summary = "Update user role (ADMIN only)")
-    public ResponseEntity<UserResponse> updateRole(@PathVariable Long id,
-                                                    @Valid @RequestBody RoleUpdateRequest request) {
-        return ResponseEntity.ok(userService.updateRole(id, request.getRole()));
+    public ResponseEntity<UserResponse> updateRole(@PathVariable @NonNull Long id,
+                                                    @Valid @RequestBody @NonNull RoleUpdateRequest request) {
+        return ResponseEntity.ok(userService.updateRole(id, Objects.requireNonNull(request.getRole())));
     }
 
     @GetMapping("/search")

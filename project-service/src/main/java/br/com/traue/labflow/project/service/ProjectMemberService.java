@@ -4,10 +4,12 @@ import br.com.traue.labflow.project.dto.*;
 import br.com.traue.labflow.project.entity.*;
 import br.com.traue.labflow.project.repository.*;
 import lombok.RequiredArgsConstructor;
+import org.springframework.lang.NonNull;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Objects;
 
 @Service
 @RequiredArgsConstructor
@@ -26,7 +28,7 @@ public class ProjectMemberService {
     }
 
     @Transactional
-    public ProjectMemberResponse addMember(Long projectId, ProjectMemberRequest request) {
+    public ProjectMemberResponse addMember(@NonNull Long projectId, @NonNull ProjectMemberRequest request) {
         if (memberRepository.existsByProjectIdAndUserId(projectId, request.getUserId())) {
             throw new IllegalArgumentException("User already a member of this project");
         }
@@ -38,11 +40,11 @@ public class ProjectMemberService {
                 .userId(request.getUserId())
                 .roleInProject(request.getRoleInProject() != null ? request.getRoleInProject() : "CONTRIBUTOR")
                 .build();
-        return toResponse(memberRepository.save(member));
+        return toResponse(memberRepository.save(Objects.requireNonNull(member)));
     }
 
     @Transactional
-    public void removeMember(Long memberId) {
+    public void removeMember(@NonNull Long memberId) {
         memberRepository.deleteById(memberId);
     }
 

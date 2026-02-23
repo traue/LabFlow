@@ -8,6 +8,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.lang.NonNull;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
@@ -31,8 +32,8 @@ public class ProjectMemberController {
     @PostMapping
     @PreAuthorize("hasAnyRole('PROF','TA','ADMIN')")
     @Operation(summary = "Add member to project (PROF/TA/ADMIN)")
-    public ResponseEntity<ProjectMemberResponse> addMember(@PathVariable Long projectId,
-                                                            @Valid @RequestBody ProjectMemberRequest request) {
+    public ResponseEntity<ProjectMemberResponse> addMember(@PathVariable @NonNull Long projectId,
+                                                            @Valid @RequestBody @NonNull ProjectMemberRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED).body(memberService.addMember(projectId, request));
     }
 

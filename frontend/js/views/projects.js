@@ -1,4 +1,4 @@
-import { api, getCurrentUser } from '../api.js';
+import { api, getCurrentUser, parseJwt, getToken } from '../api.js';
 import { icons } from '../icons.js';
 import { renderAppLayout } from './layout.js';
 import { toast, openModal, confirm, escapeHtml, formatDate, roleBadge } from '../ui.js';
@@ -102,7 +102,8 @@ export async function renderProjectDetail({ id }) {
   const user = getCurrentUser();
   const role = user?.role || '';
   const isPrivileged = ['ROLE_ADMIN', 'ROLE_PROF', 'ROLE_TA'].includes(role);
-  const canDelete = ['ROLE_ADMIN', 'ROLE_PROF'].includes(role);
+  const uid = getCurrentUserId();
+  const isAdmin = role === 'ROLE_ADMIN';
 
   let project, members = [], submissions = [];
   try {
@@ -116,6 +117,9 @@ export async function renderProjectDetail({ id }) {
     navigate('/projects');
     return;
   }
+
+  const canEdit = isAdmin || (uid && project.createdByUserId === uid);
+  const canDelete = isAdmin || (uid && project.createdByUserId === uid);
 
   // Resolve user details for members and submissions
   const allUserIds = [...new Set([
@@ -157,7 +161,7 @@ export async function renderProjectDetail({ id }) {
         ${project.courseCode ? `<span class="badge badge-primary" style="margin-top:.25rem">${escapeHtml(project.courseCode)}</span>` : ''}
       </div>
       <div style="display:flex;gap:.5rem">
-        ${isPrivileged ? `<button class="btn btn-sm btn-secondary" id="btn-edit-project">${icons.edit} Editar</button>` : ''}
+        ${canEdit ? `<button class="btn btn-sm btn-secondary" id="btn-edit-project">${icons.edit} Editar</button>` : ''}
         ${canDelete ? `<button class="btn btn-sm btn-danger" id="btn-delete-project">${icons.trash} Excluir</button>` : ''}
       </div>
     </div>
@@ -596,4 +600,12 @@ function openSubmissionModal(projectId) {
       btn.disabled = false;
     }
   });
+}
+
+// ─── Helper: Get current user ID from JWT ───
+function getCurrentUserId() {
+  const token = getToken();
+  if (!token) return null;
+  const payload = parseJwt(token);
+  return payload ? Number(payload.sub) : null;
 }
