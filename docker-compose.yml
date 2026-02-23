@@ -1,0 +1,159 @@
+version: "3.9"
+
+services:
+  # ───────────────── Databases ─────────────────
+  postgres_auth:
+    image: postgres:16-alpine
+    container_name: postgres_auth
+    environment:
+      POSTGRES_DB: postgres_auth
+      POSTGRES_USER: labflow
+      POSTGRES_PASSWORD: labflow
+    ports:
+      - "5432:5432"
+    volumes:
+      - pg_auth_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U labflow -d postgres_auth"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  postgres_project:
+    image: postgres:16-alpine
+    container_name: postgres_project
+    environment:
+      POSTGRES_DB: postgres_project
+      POSTGRES_USER: labflow
+      POSTGRES_PASSWORD: labflow
+    ports:
+      - "5433:5432"
+    volumes:
+      - pg_project_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U labflow -d postgres_project"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  postgres_review:
+    image: postgres:16-alpine
+    container_name: postgres_review
+    environment:
+      POSTGRES_DB: postgres_review
+      POSTGRES_USER: labflow
+      POSTGRES_PASSWORD: labflow
+    ports:
+      - "5434:5432"
+    volumes:
+      - pg_review_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U labflow -d postgres_review"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  # ───────────────── Services ─────────────────
+  auth-service:
+    build:
+      context: ./auth-service
+      dockerfile: Dockerfile
+    container_name: auth-service
+    ports:
+      - "8081:8081"
+    environment:
+      DB_HOST: postgres_auth
+      DB_PORT: 5432
+      DB_NAME: postgres_auth
+      DB_USER: labflow
+      DB_PASS: labflow
+      JWT_SECRET: superSecretKeyForLabFlowJwtTokenGeneration2025!
+    depends_on:
+      postgres_auth:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8081/swagger-ui.html || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  project-service:
+    build:
+      context: ./project-service
+      dockerfile: Dockerfile
+    container_name: project-service
+    ports:
+      - "8082:8082"
+    environment:
+      DB_HOST: postgres_project
+      DB_PORT: 5432
+      DB_NAME: postgres_project
+      DB_USER: labflow
+      DB_PASS: labflow
+      JWT_SECRET: superSecretKeyForLabFlowJwtTokenGeneration2025!
+    depends_on:
+      postgres_project:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8082/swagger-ui.html || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  review-service:
+    build:
+      context: ./review-service
+      dockerfile: Dockerfile
+    container_name: review-service
+    ports:
+      - "8083:8083"
+    environment:
+      DB_HOST: postgres_review
+      DB_PORT: 5432
+      DB_NAME: postgres_review
+      DB_USER: labflow
+      DB_PASS: labflow
+      JWT_SECRET: superSecretKeyForLabFlowJwtTokenGeneration2025!
+    depends_on:
+      postgres_review:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8083/swagger-ui.html || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  # ───────────────── Frontend ─────────────────
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: labflow-frontend
+    ports:
+      - "3000:80"
+    depends_on:
+      auth-service:
+        condition: service_healthy
+      project-service:
+        condition: service_healthy
+      review-service:
+        condition: service_healthy
+
+  # ───────────────── Admin UI ─────────────────
+  adminer:
+    image: adminer:latest
+    container_name: adminer
+    ports:
+      - "9090:8080"
+    depends_on:
+      - postgres_auth
+      - postgres_project
+      - postgres_review
+
+volumes:
+  pg_auth_data:
+  pg_project_data:
+  pg_review_data:

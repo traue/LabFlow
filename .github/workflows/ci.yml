@@ -1,0 +1,139 @@
+name: LabFlow CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+env:
+  JAVA_VERSION: '21'
+  REGISTRY: ghcr.io
+  IMAGE_PREFIX: ${{ github.repository_owner }}/labflow
+
+jobs:
+  # ────────────────────── Build & Test matrix ──────────────────────
+  build:
+    name: Build ${{ matrix.service }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        service: [auth-service, project-service, review-service]
+
+    defaults:
+      run:
+        working-directory: ${{ matrix.service }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK ${{ env.JAVA_VERSION }}
+        uses: actions/setup-java@v4
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: temurin
+          cache: maven
+
+      - name: Run tests
+        run: mvn -DskipTests=false test -B
+
+      - name: Package
+        run: mvn -DskipTests=false package -B
+
+      - name: Upload JAR artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.service }}-jar
+          path: ${{ matrix.service }}/target/*.jar
+          retention-days: 1
+
+  # ────────────────────── Docker images ──────────────────────
+  docker:
+    name: Docker ${{ matrix.service }}
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      matrix:
+        service: [auth-service, project-service, review-service]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./${{ matrix.service }}
+          push: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/${{ matrix.service }}:${{ github.sha }}
+            ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/${{ matrix.service }}:latest
+
+  # ────────────────────── Integration tests ──────────────────────
+  integration:
+    name: Integration tests
+    needs: build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Start services
+        run: docker compose -f docker-compose.yml up -d --build --wait
+        timeout-minutes: 10
+
+      - name: Wait for services
+        run: |
+          echo "Waiting for auth-service..."
+          for i in $(seq 1 30); do
+            curl -sf http://localhost:8081/v3/api-docs > /dev/null && break
+            sleep 2
+          done
+          echo "Waiting for project-service..."
+          for i in $(seq 1 30); do
+            curl -sf http://localhost:8082/v3/api-docs > /dev/null && break
+            sleep 2
+          done
+          echo "Waiting for review-service..."
+          for i in $(seq 1 30); do
+            curl -sf http://localhost:8083/v3/api-docs > /dev/null && break
+            sleep 2
+          done
+
+      - name: Smoke test – register & login
+        run: |
+          # Register
+          REGISTER=$(curl -s -w "\n%{http_code}" -X POST http://localhost:8081/api/auth/register \
+            -H "Content-Type: application/json" \
+            -d '{"username":"ci_user","email":"ci@labflow.dev","password":"secret123"}')
+          HTTP_CODE=$(echo "$REGISTER" | tail -1)
+          echo "Register HTTP $HTTP_CODE"
+          [ "$HTTP_CODE" = "201" ] || exit 1
+
+          # Login
+          LOGIN=$(curl -s -X POST http://localhost:8081/api/auth/login \
+            -H "Content-Type: application/json" \
+            -d '{"username":"ci_user","password":"secret123"}')
+          TOKEN=$(echo "$LOGIN" | jq -r '.accessToken')
+          echo "Got token: ${TOKEN:0:20}..."
+
+          # Authenticated call
+          curl -sf http://localhost:8082/api/courses \
+            -H "Authorization: Bearer $TOKEN" | jq .
+
+      - name: Tear down
+        if: always()
+        run: docker compose -f docker-compose.yml down -v
