@@ -157,7 +157,7 @@ reviews (id, submission_id, reviewer_user_id, comment, created_at)
 ### 1. Clonar o repositório
 
 ```bash
-git clone https://github.com/seu-usuario/LabFlow.git
+git clone https://github.com/traue/LabFlow.git
 cd LabFlow
 ```
 
