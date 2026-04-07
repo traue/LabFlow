@@ -4,6 +4,9 @@
   <img src="https://img.shields.io/badge/PostgreSQL-16-336791?style=flat-square&logo=postgresql&logoColor=white" />
   <img src="https://img.shields.io/badge/Vite-5.4-646CFF?style=flat-square&logo=vite&logoColor=white" />
   <img src="https://img.shields.io/badge/Docker-Compose-2496ED?style=flat-square&logo=docker&logoColor=white" />
+  <img src="https://img.shields.io/badge/JUnit-5-25A162?style=flat-square&logo=junit5&logoColor=white" />
+  <img src="https://img.shields.io/badge/Mockito-5.x-78C257?style=flat-square" />
+  <img src="https://img.shields.io/badge/Testes-100%25_passando-brightgreen?style=flat-square" />
   <img src="https://img.shields.io/badge/License-MIT-green?style=flat-square" />
 </p>
 
@@ -30,6 +33,7 @@ A aplicação segue uma **arquitetura de microsserviços**, com backend em **Jav
 - [Estrutura do Projeto](#estrutura-do-projeto)
 - [Frontend](#frontend)
 - [Variáveis de Ambiente](#variáveis-de-ambiente)
+- [Testes](#testes)
 - [Importação de Usuários em Lote](#importação-de-usuários-em-lote)
 
 ---
@@ -120,6 +124,9 @@ reviews (id, submission_id, reviewer_user_id, comment, created_at)
 | Lombok | 1.18.38 | Redução de boilerplate |
 | SpringDoc OpenAPI | 2.x | Documentação Swagger UI |
 | Maven | 3.9 | Build e gerenciamento de dependências |
+| **JUnit** | **5** | **Framework de testes unitários** |
+| **Mockito** | **5.x** | **Mocking de dependências em testes** |
+| **H2** | **2.x** | **Banco em memória para testes de integração** |
 
 ### Frontend
 | Tecnologia | Versão | Uso |
@@ -239,12 +246,85 @@ npm run preview
 ### Testes
 
 ```bash
-# Executar testes de todos os módulos
+# Executar testes de todos os módulos do reactor (a partir da raiz)
 mvn clean test
 
 # Executar testes de um serviço específico
-cd auth-service && mvn test
+cd auth-service    && mvn test
+cd project-service && mvn test
+cd review-service  && mvn test
 ```
+
+---
+
+## Testes
+
+Todos os microserviços de backend possuem **testes unitários** com JUnit 5 + Mockito,
+integrados ao ciclo de vida do Maven (fase `test` — executada automaticamente por `mvn package`,
+`mvn verify` e `mvn install`).
+
+### Contagem de testes por módulo
+
+| Módulo | Total de testes | Classes de teste |
+|--------|:--------------:|------------------|
+| **auth-service** | **37** | `AuthServiceTest`, `UserServiceTest`, `ProfileServiceTest`, `JwtTokenProviderTest`, `AuthServiceApplicationTests` |
+| **project-service** | **46** | `CourseServiceTest`, `ProjectServiceTest`, `ProjectMemberServiceTest`, `SubmissionServiceTest`, `ProjectServiceApplicationTests` |
+| **review-service** | **17** | `ReviewServiceTest`, `ReviewServiceApplicationTests` |
+| **Total** | **100** | — |
+
+### Estratégia de testes
+
+| Tipo | Tecnologia | Descrição |
+|------|-----------|----------|
+| **Testes unitários de serviço** | JUnit 5 + Mockito (`@ExtendWith(MockitoExtension.class)`) | Repositórios são mockados; testa a lógica de negócio isoladamente, sem banco de dados |
+| **Testes de integração (smoke)** | JUnit 5 + `@SpringBootTest` + MockMvc | Sobe o contexto Spring completo com banco H2 em memória; valida os endpoints HTTP de ponta a ponta |
+
+### Cobertura de domínio
+
+- **`AuthService`** — registro (sucesso, username duplicado, e-mail duplicado, role padrão) e login (sucesso, credenciais inválidas)
+- **`UserService`** — findAll, findByIds, findById, findByUsername, updateRole, busca textual e importação em lote
+- **`ProfileService`** — getByUserId, updateProfile (perfil existente, criação automática, campos nulos)
+- **`JwtTokenProvider`** — geração de token, extração de claims, validação, token adulterado
+- **`CourseService`** — CRUD completo com regras de autorização (criador, admin, acesso negado)
+- **`ProjectService`** — CRUD, busca por membro, criação em curso, controle de acesso
+- **`ProjectMemberService`** — listagem, adição (novo, duplicado, projeto inexistente), remoção, role padrão
+- **`SubmissionService`** — listagem, busca por ID, criação via projectId e via request
+- **`ReviewService`** — listagem, busca, criação com/sem nota, atualização e exclusão com controle de acesso
+
+### Configuração do Maven (surefire)
+
+O plugin `maven-surefire-plugin` está configurado explicitamente em cada POM de serviço:
+
+```xml
+<plugin>
+    <groupId>org.apache.maven.plugins</groupId>
+    <artifactId>maven-surefire-plugin</artifactId>
+    <configuration>
+        <useModulePath>false</useModulePath>
+        <!-- Necessário para ByteBuddy/Mockito em Java 21+ -->
+        <argLine>
+            -XX:+EnableDynamicAgentLoading
+            --add-opens java.base/java.lang=ALL-UNNAMED
+            --add-opens java.base/java.lang.reflect=ALL-UNNAMED
+            --add-opens java.base/java.util=ALL-UNNAMED
+        </argLine>
+        <includes>
+            <include>**/*Test.java</include>
+            <include>**/*Tests.java</include>
+        </includes>
+    </configuration>
+</plugin>
+```
+
+> **Nota sobre Java 25:** O projeto usa o Mockito com o **SubclassByteBuddyMockMaker** (configurado em
+> `src/test/resources/mockito-extensions/org.mockito.plugins.MockMaker` em cada módulo)
+> para garantir compatibilidade com Java 21+ sem depender de instrumentação JVM inline.
+
+### Banco de dados em testes
+
+Os testes unitários **não precisam de banco de dados** — repositórios são mockados com Mockito.
+Os testes de integração (`@SpringBootTest`) usam **H2 em memória**, configurado em
+`src/test/resources/application.yml` de cada módulo (Flyway desabilitado, DDL `create-drop`).
 
 ---
 
